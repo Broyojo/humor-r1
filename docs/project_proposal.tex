@@ -1,0 +1,54 @@
+\documentclass{article}
+\usepackage[margin=1in]{geometry}
+\usepackage[final]{neurips_2026}
+\usepackage{hyperref}       % hyperlinks
+\usepackage{url}            % simple URL typesetting
+\usepackage{booktabs}       % professional-quality tables
+\usepackage{graphicx} % Required for inserting images
+
+\title{CS 4650 Project Proposal}
+\author{
+David Andrews\thanks{Equal contribution. Authors listed in alphabetical order.}, 
+\space Yuexi Song\footnotemark[1], 
+ \space Erika Tay\footnotemark[1] \\
+Georgia Institute of Technology \\
+\texttt{\{dandrews47,ysong644,etay6\}@gatech.edu}
+}
+
+\date{March 2026}
+
+\begin{document}
+
+\maketitle
+\vspace{-2em}
+\section{Problem \& Motivation}
+\vspace{-0.5em}
+Large language models (LLMs) exhibit impressive ability in domains such as math, coding, and creative writing. However, their performance remains limited in more subjective aspects of language. In particular, they struggle with generating humor, often producing repetitive jokes that fall flat \cite{zhang2024humoraimassivescale,jentzsch2023chatgptfunfunnyhumor}. If we desire LLMs to be interesting and be able to express the full range of human conversation, it would then hold that we want to improve their capability for humor.
+\vspace{-0.5em}
+\section{Dataset}
+\vspace{-0.5em}
+We plan to utilize the New Yorker Caption Ranking Dataset \cite{zhang2024humoraimassivescale}, a dataset containing 250 million humor preference ratings on 2.2 million New Yorker cartoon captions. This dataset provides ample scale for training a reward model that can capture a nuanced understanding of human preference on humorous cartoon captions. We also hope to create a smaller dataset on diverse images to extend dataset coverage and test our model's generalization. 
+\vspace{-0.5em}
+\section{Approach}
+\vspace{-0.5em}
+We apply a standard RLHF \cite{ouyang2022traininglanguagemodelsfollow} pipeline to our problem. We first train a Bradley-Terry reward model \cite{christiano2023deepreinforcementlearninghuman} initialized from Qwen3-VL \cite{bai2025qwen3vltechnicalreport} on the New Yorker Caption Ranking Dataset \cite{zhang2024humoraimassivescale}. Next, we initialize a policy model from Qwen3-VL and train it with GRPO \cite{shao2024deepseekmathpushinglimitsmathematical} against the reward model, using held-out comics from the preference dataset as prompts for the rollouts. We choose GRPO rather than PPO due to GRPO's increased memory efficiency and popularity in RLVR tasks. Importantly, we prompt the model to do Chain-of-Thought (CoT) reasoning before producing the caption, reinforcing reasoning strategies that led to better humor outputs \cite{Guo_2025}. Moreover, the finetuning we conduct utilizes LoRA \cite{hu2021loralowrankadaptationlarge} for efficient training on our limited compute budget.
+
+% preference model that takes in what humans actually think is funny
+% we either hold out data or reuse data
+
+% the llm can caption some existing new yoroker cartooons
+\vspace{-0.5em}
+\section{Evaluation}
+\vspace{-0.5em}
+We hope to evaluate the model by the evaluation method presented in \cite{zhang2024humoraimassivescale} using LLM and further conduct surveys to manually validate the results. We compare against Qwen3-VL zero-shot, few-shot, and SFT as baselines. Concretely, we are interested in the following experiments:
+\begin{enumerate}
+    \item Human agreement rate with the reward model on held-out data.
+    \item Human rating of the policy's captions.
+    \item The policy's captioning ability on OOD images (e.g. natural images).
+\end{enumerate}
+As humor is quite subjective, our ability to measure this quality objectively is limited. However, through a combination of human preference ranking and utilizing our reward model as a proxy for this human preference, we can approximate the true level of humor present in the responses from various models.
+
+\bibliographystyle{plain}
+\bibliography{references}
+
+\end{document}

@@ -26,6 +26,32 @@ Add dependencies:
 uv add <package_name>
 ```
 
+## Data Preparation
+
+In the project root directory, run:
+
+```bash
+uv run python scripts/download_data.py
+```
+
+The processed data will be written to the `data/` directory.
+
+- `data/images/` contains the cartoon images, one file per contest, named as
+  `<contest_number>.png`.
+- `data/caption_sft_train/`, `data/caption_sft_validation/`, and
+  `data/caption_sft_test/` are Hugging Face datasets for caption generation.
+  Each row includes an `image_path`, a text `prompt` built from the cartoon
+  description, and a high-rated human `caption`.
+- `data/bt_pairs_train.parquet`, `data/bt_pairs_validation.parquet`, and
+  `data/bt_pairs_test.parquet` contain Bradley-Terry preference pairs for
+  reward-model training. Each row has the same cartoon paired with a `chosen`
+  caption and a `rejected` caption, along with metadata such as `mean_gap` and
+  `sigma_gap`.
+
+Use `caption_sft_*` for supervised captioning baselines and `bt_pairs_*.parquet`
+for training the reward model.
+
+
 ## GRPO training (stub pipeline)
 
 Smoke-test the GRPO loop on `google/gemma-4-E2B-it` with a random reward

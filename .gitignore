@@ -10,3 +10,8 @@ data/
 # Virtual environments
 .venv
 wandb
+
+# Run artifacts
+logs/
+checkpoints/
+*.log

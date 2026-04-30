@@ -40,13 +40,13 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_LORA_DIR = Path(
     os.environ.get(
         "POLICY_LORA_DIR",
-        str(Path.home() / "scratch/humor-r1/checkpoints/qwen3vl-2b-grpo-newyorker/lora_final"),
+        str(PROJECT_ROOT / "checkpoints/qwen3vl-2b-grpo-newyorker/lora_final"),
     )
 )
 DEFAULT_RM_DIR = Path(
     os.environ.get(
         "REWARD_MODEL_DIR",
-        str(Path.home() / "scratch/humor-r1/final_reward_model"),
+        str(PROJECT_ROOT / "checkpoints/rm-baseline-20k-fa2/final_reward_model"),
     )
 )
 DEFAULT_TEST_DATA = PROJECT_ROOT / "data" / "caption_sft_test"

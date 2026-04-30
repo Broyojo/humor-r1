@@ -19,6 +19,11 @@ from __future__ import annotations
 import argparse
 import json
 import os
+# vLLM forks a worker subprocess; if torch is imported before, the fork
+# carries a tainted CUDA state and crashes ("Cannot re-initialize CUDA in
+# forked subprocess"). Switch to spawn before any torch/vllm import.
+os.environ.setdefault("VLLM_WORKER_MULTIPROC_METHOD", "spawn")
+
 import re
 import sys
 from pathlib import Path
@@ -312,9 +317,22 @@ def main() -> int:
     )
 
     # Tear down vLLM before loading the reward model so RM can claim GPU memory.
+    # `del llm` alone leaves the EngineCore subprocess holding ~60 GB; we have
+    # to destroy the distributed env explicitly.
+    try:
+        from vllm.distributed.parallel_state import (
+            destroy_distributed_environment,
+            destroy_model_parallel,
+        )
+        destroy_model_parallel()
+        destroy_distributed_environment()
+    except Exception as e:  # noqa: BLE001
+        print(f"  vllm teardown warn: {e}", flush=True)
     del llm
     import gc; gc.collect()
     torch.cuda.empty_cache()
+    if torch.cuda.is_available():
+        torch.cuda.synchronize()
 
     print(f"\nLoading reward model on cuda:{args.reward_gpu}...", flush=True)
     rm = load_reward_model(args.reward_model_dir, dtype=torch.bfloat16,

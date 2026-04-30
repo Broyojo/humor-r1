@@ -235,22 +235,24 @@ def get_torch_dtype(dtype_name: str) -> torch.dtype:
 
 
 def build_messages(prompt: str, caption: str) -> list[dict[str, Any]]:
-    # Match the policy's prompt format exactly so the RM scores the same
-    # (image, prompt) -> response distribution the policy produces. The
-    # caption goes in the assistant turn (standard RLHF reward-model
-    # format); pooling at the last assistant token then reflects the
-    # model's view of "this caption is the response to this prompt".
-    # `prompt` is intentionally ignored — see commit history.
-    USER_TEXT = "Write a funny one-line caption for this New Yorker-style cartoon."
+    # Single user-turn judge framing. We tried policy-aligned (caption in
+    # assistant turn) but it empirically dropped val acc to ~0.60 at step
+    # 125 vs ~0.69 with this format. Theoretically cleaner format, worse
+    # numbers — sticking with what works.
+    # `prompt` ignored — descriptions aren't available OOD.
+    text = (
+        "Write a funny one-line caption for this New Yorker-style cartoon.\n\n"
+        f"Candidate caption: {caption}\n\n"
+        "Judge how funny this caption is for the cartoon."
+    )
     return [
         {
             "role": "user",
             "content": [
                 {"type": "image"},
-                {"type": "text", "text": USER_TEXT},
+                {"type": "text", "text": text},
             ],
-        },
-        {"role": "assistant", "content": caption},
+        }
     ]
 
 

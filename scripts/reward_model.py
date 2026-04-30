@@ -26,18 +26,20 @@ from transformers import AutoModel, AutoProcessor
 
 def _build_messages(prompt: str, caption: str) -> list[dict[str, Any]]:
     # MUST match training-time build_messages in scripts/train_reward_model.py.
-    # Policy-aligned format: caption goes in assistant turn so the RM scores
-    # the same (image, prompt) -> response distribution the policy produces.
-    USER_TEXT = "Write a funny one-line caption for this New Yorker-style cartoon."
+    # Judge-in-user-turn format (asst-role experiment dropped val acc).
+    text = (
+        "Write a funny one-line caption for this New Yorker-style cartoon.\n\n"
+        f"Candidate caption: {caption}\n\n"
+        "Judge how funny this caption is for the cartoon."
+    )
     return [
         {
             "role": "user",
             "content": [
                 {"type": "image"},
-                {"type": "text", "text": USER_TEXT},
+                {"type": "text", "text": text},
             ],
-        },
-        {"role": "assistant", "content": caption},
+        }
     ]
 
 

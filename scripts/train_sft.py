@@ -51,7 +51,17 @@ SYSTEM_INSTRUCTION = (
 def parse_args():
     p = argparse.ArgumentParser()
     p.add_argument("--model-name", default=DEFAULT_MODEL_NAME)
-    p.add_argument("--train-data", type=Path, default=DEFAULT_DATA_DIR / "caption_sft_train")
+    p.add_argument(
+        "--train-data",
+        type=Path,
+        default=DEFAULT_DATA_DIR / "caption_sft_train_with_thinking",
+        help=(
+            "HF dataset on disk with columns: image_path, prompt, caption, "
+            "and optionally `thinking`. If `thinking` is present the SFT "
+            "target is `{thinking}</think>\\n\\n<caption>{caption}</caption>`; "
+            "otherwise `<caption>{caption}</caption>`."
+        ),
+    )
     p.add_argument("--data-root", type=Path, default=DEFAULT_DATA_DIR)
     p.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     p.add_argument("--max-train-samples", type=int, default=None)
@@ -121,12 +131,20 @@ class SFTCollator:
                 ex["scene_description"], ex["scene_twist"],
                 ex["location"], ex["entities"], ex["prompt"],
             )
-            target = f"<caption>{ex['caption']}</caption>"
+            # If the dataset has a synthetic thinking trace, splice it in.
+            # The chat template auto-prepends "<think>\n" so we just need to
+            # close it and add the caption.
+            thinking = ex.get("thinking", "").strip()
+            if thinking:
+                target = f"{thinking}</think>\n\n<caption>{ex['caption']}</caption>"
+            else:
+                target = f"<caption>{ex['caption']}</caption>"
 
             # 1) Render the prompt text only (assistant turn opened).
+            #    enable_thinking is ignored by the Qwen3-VL-Thinking template
+            #    in practice; we always get the "<think>\n" prefix.
             prompt_text = self.processor.apply_chat_template(
                 base_msgs, tokenize=False, add_generation_prompt=True,
-                enable_thinking=False,
             )
             # 2) Tokenize prompt+image with the processor to get aligned
             #    pixel_values + input_ids.

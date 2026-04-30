@@ -358,7 +358,7 @@ def main() -> int:
         logging_steps=1,
         # KL stays modest — Qwen3-VL-Thinking produces structured think/answer
         # blocks already, so we don't want to drift far from that prior.
-        beta=0.04,
+        beta=float(os.environ.get("GRPO_BETA", "0.04")),
         epsilon=0.2,
         epsilon_high=0.28,
         delta=1.5,

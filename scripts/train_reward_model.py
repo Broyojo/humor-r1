@@ -520,6 +520,86 @@ def compute_metrics(eval_prediction):
     }
 
 
+class FastValAccuracyCallback:
+    """Run fast batched pairwise eval on a held-out subset every N steps.
+
+    The default HF Trainer eval loop with our pair collator hits some
+    pathologically slow path (~2 min/batch with GPU at 13% util — root
+    cause unclear). This callback bypasses it: builds a fixed val
+    subset, scores chosen vs rejected directly with score_batch-style
+    forward, logs preference_accuracy + reward_margin to wandb.
+
+    Hooks into HF Trainer via on_step_end. Does not implement the full
+    TrainerCallback ABC because we just need the one hook.
+    """
+
+    def __init__(self, model, processor, val_dataset, data_root, image_max_side,
+                 batch_size=4, every_n_steps=50, max_pairs=200):
+        self.model = model
+        self.processor = processor
+        self.data_root = data_root
+        self.image_max_side = image_max_side
+        self.batch_size = batch_size
+        self.every_n_steps = every_n_steps
+        self.val_dataset = val_dataset.select(range(min(max_pairs, len(val_dataset))))
+        self._collator = PreferenceCollator(
+            processor=processor, data_root=data_root,
+            max_length=4096, image_max_side=image_max_side,
+        )
+
+    def on_step_end(self, args, state, control, **kwargs):
+        if state.global_step == 0 or state.global_step % self.every_n_steps != 0:
+            return control
+        try:
+            self._eval(state)
+        except Exception as e:  # noqa: BLE001
+            print(f"[fast-val-eval] step {state.global_step}: {e}", flush=True)
+        return control
+
+    @torch.no_grad()
+    def _eval(self, state):
+        was_training = self.model.training
+        self.model.eval()
+        device = next(self.model.parameters()).device
+
+        wins = 0
+        margin_sum = 0.0
+        n = 0
+        for start in range(0, len(self.val_dataset), self.batch_size):
+            batch_rows = [
+                self.val_dataset[i]
+                for i in range(start, min(start + self.batch_size, len(self.val_dataset)))
+            ]
+            inputs = self._collator(batch_rows)
+            inputs = {k: v.to(device) if torch.is_tensor(v) else v for k, v in inputs.items()}
+            outputs = self.model(**inputs)
+            rewards = outputs["chosen_rewards"], outputs["rejected_rewards"]
+            for c, r in zip(rewards[0].float().cpu().tolist(),
+                            rewards[1].float().cpu().tolist()):
+                wins += int(c > r)
+                margin_sum += (c - r)
+                n += 1
+
+        acc = wins / max(n, 1)
+        margin = margin_sum / max(n, 1)
+        msg = f"[fast-val-eval] step {state.global_step}: acc={acc:.4f}  margin={margin:+.4f}  n={n}"
+        print(msg, flush=True)
+        try:
+            import wandb
+            if wandb.run is not None:
+                wandb.log({
+                    "val/preference_accuracy": acc,
+                    "val/reward_margin": margin,
+                    "val/n_pairs": n,
+                    "train/global_step": state.global_step,
+                })
+        except Exception:
+            pass
+
+        if was_training:
+            self.model.train()
+
+
 def load_pair_dataset(path: Path, max_samples: int | None):
     dataset = load_dataset("parquet", data_files=str(path))["train"]
     if max_samples is not None:
@@ -718,10 +798,24 @@ def main():
         model=model,
         args=training_args,
         train_dataset=train_dataset,
-        eval_dataset=eval_dataset,
+        # Don't pass eval_dataset — TRL's HF eval loop is pathologically slow
+        # for our pair collator (~2 min/batch, 13% GPU util). Use the fast
+        # callback below instead, which logs val/preference_accuracy and
+        # val/reward_margin to wandb every 50 train steps.
         data_collator=collator,
-        compute_metrics=compute_metrics if eval_dataset is not None else None,
     )
+
+    if eval_dataset is not None:
+        trainer.add_callback(FastValAccuracyCallback(
+            model=model,
+            processor=processor,
+            val_dataset=eval_dataset,
+            data_root=args.data_root,
+            image_max_side=args.image_max_side,
+            batch_size=args.per_device_eval_batch_size,
+            every_n_steps=int(os.environ.get("FAST_VAL_EVERY", "25")),
+            max_pairs=int(os.environ.get("FAST_VAL_PAIRS", "200")),
+        ))
 
     trainer.train()
 

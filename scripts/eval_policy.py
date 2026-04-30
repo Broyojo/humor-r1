@@ -176,6 +176,10 @@ def generate_for_policy(
         temperature=temperature,
         top_p=1.0,
         max_tokens=max_new_tokens,
+        # Match training: stop the second </caption> closes so we don't burn
+        # the whole budget on rambling that never commits.
+        stop=["</caption>"],
+        include_stop_str_in_output=True,
     )
 
     lora_request = None

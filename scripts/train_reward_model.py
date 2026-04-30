@@ -34,6 +34,7 @@ from transformers import (
     AutoModel,
     AutoProcessor,
     Trainer,
+    TrainerCallback,
     TrainingArguments,
 )
 
@@ -520,7 +521,7 @@ def compute_metrics(eval_prediction):
     }
 
 
-class FastValAccuracyCallback:
+class FastValAccuracyCallback(TrainerCallback):
     """Run fast batched pairwise eval on a held-out subset every N steps.
 
     The default HF Trainer eval loop with our pair collator hits some
@@ -528,9 +529,6 @@ class FastValAccuracyCallback:
     cause unclear). This callback bypasses it: builds a fixed val
     subset, scores chosen vs rejected directly with score_batch-style
     forward, logs preference_accuracy + reward_margin to wandb.
-
-    Hooks into HF Trainer via on_step_end. Does not implement the full
-    TrainerCallback ABC because we just need the one hook.
     """
 
     def __init__(self, model, processor, val_dataset, data_root, image_max_side,
@@ -769,8 +767,10 @@ def main():
         warmup_ratio=args.warmup_ratio,
         weight_decay=args.weight_decay,
         logging_steps=args.logging_steps,
-        eval_strategy="steps" if eval_dataset is not None else "no",
-        eval_steps=args.eval_steps if eval_dataset is not None else None,
+        # eval is handled by FastValAccuracyCallback below, not the HF
+        # Trainer eval loop (which has a slow path for our pair collator).
+        eval_strategy="no",
+        eval_steps=None,
         save_steps=args.save_steps,
         save_total_limit=args.save_total_limit,
         bf16=args.dtype == "bfloat16",

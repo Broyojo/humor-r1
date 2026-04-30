@@ -76,13 +76,13 @@ LORA_ALPHA = int(os.environ.get("LORA_ALPHA", "32"))
 # Thinking budget. Qwen3-VL-Thinking is verbose — at 768 we observed
 # clipped_ratio=1.0 (every completion ran out before closing </think>).
 # Give it real room to reason and emit the caption.
-MAX_COMPLETION_LENGTH = int(os.environ.get("MAX_COMPLETION_LENGTH", "2048"))
+MAX_COMPLETION_LENGTH = int(os.environ.get("MAX_COMPLETION_LENGTH", "3072"))
 # Image patches dominate the prompt length. Empirically a 600x600 cartoon
 # at the processor's default max_pixels expanded to ~9k tokens. We resize
 # images to IMAGE_MAX_SIDE before passing to the processor (see
 # build_dataset()), which knocks the image to ~1k tokens.
 IMAGE_MAX_SIDE = int(os.environ.get("IMAGE_MAX_SIDE", "448"))
-MAX_MODEL_LENGTH = int(os.environ.get("MAX_MODEL_LENGTH", "4096"))
+MAX_MODEL_LENGTH = int(os.environ.get("MAX_MODEL_LENGTH", "5120"))
 
 SYSTEM_INSTRUCTION = (
     "You are a witty cartoon caption writer. Look at the cartoon image and "
@@ -331,6 +331,15 @@ def main() -> int:
         mask_truncated_completions=True,
         # Single combined reward (humor_reward); see its docstring.
         # No reward_weights needed when there's a single reward function.
+        # Stop generation as soon as the closing </caption> tag is emitted —
+        # otherwise Qwen3-VL-Thinking rambles through the whole 3072-token
+        # budget without committing. include_stop_str_in_output keeps the
+        # closing tag in the completion so our `<caption>(.*?)</caption>`
+        # regex still matches.
+        generation_kwargs={
+            "stop": ["</caption>"],
+            "include_stop_str_in_output": True,
+        },
         # Rollouts via vLLM colocate on the trainer's GPU.
         # When the RM lives on the same GPU (single-A100 setup), drop this to
         # ~0.30 to leave room for the RM's weights+activations.

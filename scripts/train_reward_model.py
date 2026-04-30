@@ -235,23 +235,22 @@ def get_torch_dtype(dtype_name: str) -> torch.dtype:
 
 
 def build_messages(prompt: str, caption: str) -> list[dict[str, Any]]:
-    # `prompt` is intentionally ignored — the original dataset prompt carries
-    # GPT-4o-generated Scene/Twist/Location/Entities annotations that are not
-    # available for OOD cartoons. We want the RM to score (image, caption)
-    # using just the image so it generalizes to any single-panel cartoon.
-    text = (
-        "Write a funny one-line caption for this New Yorker-style cartoon.\n\n"
-        f"Candidate caption: {caption}\n\n"
-        "Judge how funny this caption is for the cartoon."
-    )
+    # Match the policy's prompt format exactly so the RM scores the same
+    # (image, prompt) -> response distribution the policy produces. The
+    # caption goes in the assistant turn (standard RLHF reward-model
+    # format); pooling at the last assistant token then reflects the
+    # model's view of "this caption is the response to this prompt".
+    # `prompt` is intentionally ignored — see commit history.
+    USER_TEXT = "Write a funny one-line caption for this New Yorker-style cartoon."
     return [
         {
             "role": "user",
             "content": [
                 {"type": "image"},
-                {"type": "text", "text": text},
+                {"type": "text", "text": USER_TEXT},
             ],
-        }
+        },
+        {"role": "assistant", "content": caption},
     ]
 
 

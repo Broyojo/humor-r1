@@ -25,22 +25,19 @@ from transformers import AutoModel, AutoProcessor
 
 
 def _build_messages(prompt: str, caption: str) -> list[dict[str, Any]]:
-    # `prompt` is intentionally ignored — must match training-time
-    # build_messages in scripts/train_reward_model.py. The RM scores
-    # (image, caption) using the image alone so it generalizes OOD.
-    text = (
-        "Write a funny one-line caption for this New Yorker-style cartoon.\n\n"
-        f"Candidate caption: {caption}\n\n"
-        "Judge how funny this caption is for the cartoon."
-    )
+    # MUST match training-time build_messages in scripts/train_reward_model.py.
+    # Policy-aligned format: caption goes in assistant turn so the RM scores
+    # the same (image, prompt) -> response distribution the policy produces.
+    USER_TEXT = "Write a funny one-line caption for this New Yorker-style cartoon."
     return [
         {
             "role": "user",
             "content": [
                 {"type": "image"},
-                {"type": "text", "text": text},
+                {"type": "text", "text": USER_TEXT},
             ],
-        }
+        },
+        {"role": "assistant", "content": caption},
     ]
 
 

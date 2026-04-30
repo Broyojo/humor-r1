@@ -226,7 +226,23 @@ def score_rows(rows: list[dict], rm, num_samples: int, label: str) -> dict:
             r.setdefault("scores", []).append(None)  # backfilled below
 
     if images:
-        scores = score_batch(rm, images, prompts, captions)
+        # Chunk to avoid OOM: a single big score_batch tries to allocate
+        # `len(images) * seq_len * hidden_size` activations and OOMs once we
+        # have ~90 captions with images attached on a single A100 sharing
+        # memory with vLLM remnants.
+        chunk = int(os.environ.get("SCORE_BATCH", "8"))
+        scores: list[float] = []
+        for i in range(0, len(images), chunk):
+            scores.extend(
+                score_batch(
+                    rm,
+                    images[i : i + chunk],
+                    prompts[i : i + chunk],
+                    captions[i : i + chunk],
+                )
+            )
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
         for (r_i, s_i), sc in zip(placement, scores, strict=True):
             rows[r_i]["scores"][s_i] = float(sc)
 

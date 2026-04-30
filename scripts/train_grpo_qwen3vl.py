@@ -227,9 +227,20 @@ def build_dataset() -> Dataset:
             continue
         seen[contest] = {
             "image_path": row["image_path"],
-            "prompt_text": row["prompt"],
+            # rm_prompt: the full prompt with Scene/Twist/Location/Entities
+            # context — the RM was trained with this and expects it.
+            "rm_prompt": row["prompt"],
         }
     print(f"  unique contests: {len(seen)}", flush=True)
+
+    # Policy prompt: NO scene description / twist / location / entities. The
+    # policy is a vision-language model — it should be looking at the image,
+    # not reading a textual description of the image. We pass the same
+    # generic instruction for every cartoon so the policy can't shortcut
+    # via the prompt text.
+    POLICY_USER_PROMPT = (
+        "Write a funny one-line caption for this New Yorker-style cartoon."
+    )
 
     # Note: we do NOT preload PIL images into a column. Storing PIL.Image in
     # Dataset.from_list triggers HF Datasets to PNG-encode each image at
@@ -249,14 +260,18 @@ def build_dataset() -> Dataset:
         # see trl/data_utils.py.
         messages = [
             {"role": "system", "content": SYSTEM_INSTRUCTION},
-            {"role": "user", "content": info["prompt_text"]},
+            {"role": "user", "content": POLICY_USER_PROMPT},
         ]
 
         rows.append(
             {
                 "prompt": messages,
                 "image_path": str(image_path),
-                "prompt_text": info["prompt_text"],
+                # `prompt_text` is what humor_reward forwards to the RM —
+                # keep the full description-augmented prompt the RM was
+                # trained on, NOT the clean policy prompt. This way the RM
+                # scores captions in the distribution it was calibrated for.
+                "prompt_text": info["rm_prompt"],
                 "contest_number": contest,
             }
         )

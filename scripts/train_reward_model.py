@@ -234,8 +234,12 @@ def get_torch_dtype(dtype_name: str) -> torch.dtype:
 
 
 def build_messages(prompt: str, caption: str) -> list[dict[str, Any]]:
+    # `prompt` is intentionally ignored — the original dataset prompt carries
+    # GPT-4o-generated Scene/Twist/Location/Entities annotations that are not
+    # available for OOD cartoons. We want the RM to score (image, caption)
+    # using just the image so it generalizes to any single-panel cartoon.
     text = (
-        f"{prompt}\n\n"
+        "Write a funny one-line caption for this New Yorker-style cartoon.\n\n"
         f"Candidate caption: {caption}\n\n"
         "Judge how funny this caption is for the cartoon."
     )

@@ -25,8 +25,11 @@ from transformers import AutoModel, AutoProcessor
 
 
 def _build_messages(prompt: str, caption: str) -> list[dict[str, Any]]:
+    # `prompt` is intentionally ignored — must match training-time
+    # build_messages in scripts/train_reward_model.py. The RM scores
+    # (image, caption) using the image alone so it generalizes OOD.
     text = (
-        f"{prompt}\n\n"
+        "Write a funny one-line caption for this New Yorker-style cartoon.\n\n"
         f"Candidate caption: {caption}\n\n"
         "Judge how funny this caption is for the cartoon."
     )

@@ -62,7 +62,7 @@ run_E0c() {
 run_E1a() {
   cell E1a \
     --base-model Qwen/Qwen3-VL-2B-Instruct \
-    --lora-dir checkpoints/qwen3vl-2b-sft-instruct-nothink/final \
+    --lora-dir checkpoints/qwen3vl-2b-sft-instruct-nothink/lora_final \
     --variant no_thinking \
     --num-samples 5 \
     --max-new-tokens 256 \
@@ -79,9 +79,10 @@ run_E1b() {
 }
 
 run_E2a() {
+  # GRPO LoRA on Instruct, best checkpoint chosen later from saves at 25/50/75/100.
   cell E2a \
     --base-model Qwen/Qwen3-VL-2B-Instruct \
-    --lora-dir checkpoints/qwen3vl-2b-grpo-instruct-nothink/checkpoint-final/lora_adapter \
+    --lora-dir "${E2A_LORA_DIR:-checkpoints/qwen3vl-2b-grpo-instruct-nothink/lora_final}" \
     --variant no_thinking \
     --num-samples 5 \
     --max-new-tokens 256 \
@@ -89,10 +90,10 @@ run_E2a() {
 }
 
 run_E2b() {
-  # GRPO LoRA on the Thinking variant (current run).
+  # GRPO LoRA on the Thinking variant (best snapshot before collapse: ckpt-50).
   cell E2b \
     --base-model Qwen/Qwen3-VL-2B-Thinking \
-    --lora-dir "${E2B_LORA_DIR:-checkpoints/qwen3vl-2b-grpo-newyorker/checkpoint-200}" \
+    --lora-dir "${E2B_LORA_DIR:-checkpoints/qwen3vl-2b-grpo-thinking-final/checkpoint-50}" \
     --variant thinking \
     --num-samples 5 \
     --max-new-tokens 4096 \

@@ -44,7 +44,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--data-root", type=Path, default=PROJECT_ROOT / "data")
     p.add_argument("--out-root", type=Path, default=PROJECT_ROOT / "results" / "captions")
     p.add_argument("--max-cartoons", type=int, default=0)
-    p.add_argument("--max-tokens", type=int, default=128)
+    p.add_argument("--max-tokens", type=int, default=512,
+                   help="Bumped to 512 to leave room for reasoning models like gpt-5.5.")
     return p.parse_args()
 
 
@@ -77,6 +78,8 @@ def call_openrouter(model: str, system: str, user_text: str, image_b64: str,
             ]},
         ],
     }
+    if "gpt-5" in model or "o1" in model or "o3" in model:
+        payload["reasoning"] = {"effort": "minimal"}
     last_exc: Exception | None = None
     for attempt in range(max_retries):
         try:
@@ -102,7 +105,9 @@ def call_openrouter(model: str, system: str, user_text: str, image_b64: str,
     raise RuntimeError(f"openrouter call failed after {max_retries} retries: {last_exc}")
 
 
-def extract_caption(text: str) -> str | None:
+def extract_caption(text: str | None) -> str | None:
+    if not text:
+        return None
     m = CAPTION_RE.search(text)
     if m:
         s = m.group(1).strip()

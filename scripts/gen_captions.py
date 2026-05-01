@@ -95,12 +95,25 @@ def build_prompt_text(processor, system_prompt: str, user_prompt: str) -> str:
     )
 
 
-def extract_caption(text: str) -> str | None:
+def extract_caption(text: str, *, allow_fallback: bool = True) -> str | None:
+    """Extract a caption. Prefers <caption> tags; falls back to first line.
+
+    For no-thinking cells whose base model ignores the system-prompt format
+    (e.g. Qwen3-VL-2B-Instruct zero-shot), the completion is often the caption
+    in plain text. We treat the first non-empty stripped line as the caption.
+    Fallback is suppressed when the completion starts with <think> (i.e. the
+    thinking-format model ran out of tokens before closing the think block).
+    """
     m = CAPTION_RE.search(text)
-    if not m:
+    if m:
+        s = m.group(1).strip()
+        if s:
+            return s
+    if not allow_fallback or text.lstrip().startswith("<think>"):
         return None
-    s = m.group(1).strip()
-    return s or None
+    line = next((ln.strip() for ln in text.splitlines() if ln.strip()), "")
+    line = line.strip('"\'')
+    return line or None
 
 
 def extract_thinking(text: str) -> str | None:

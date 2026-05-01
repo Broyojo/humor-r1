@@ -53,6 +53,15 @@ CARDS = {
             "Output format: `{thinking}</think>\\n\\n<caption>X</caption>`."
         ),
     },
+    "dpo_no_thinking": {
+        "title": "DPO, no thinking (Qwen3-VL-2B-Instruct + LoRA)",
+        "summary": (
+            "LoRA on Qwen3-VL-2B-Instruct trained via Direct Preference "
+            "Optimization on 2{,}000 Bradley-Terry preference pairs. "
+            "No reward model in the loop at training time. Captions emitted "
+            "directly with no thinking trace."
+        ),
+    },
 }
 
 

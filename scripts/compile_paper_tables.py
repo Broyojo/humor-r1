@@ -19,7 +19,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 JUDGE = "anthropic/claude-sonnet-4.6"
 JUDGE_TAG = JUDGE.replace("/", "__")
-CELLS = ["E0a", "E0b", "E0c", "E1a", "E1b", "E2a", "E2b"]
+CELLS = ["E0a", "E0b", "E0c", "E1a", "E1b", "E2a", "E2b", "E3"]
 CELL_LABELS = {
     "E0a": "Qwen3-VL-2B-Instruct (zero-shot)",
     "E0b": "Qwen3-VL-2B-Thinking (zero-shot)",
@@ -28,6 +28,7 @@ CELL_LABELS = {
     "E1b": "SFT, thinking",
     "E2a": "SFT$\\to$GRPO, no thinking",
     "E2b": "GRPO, thinking (ckpt-50)",
+    "E3":  "DPO, no thinking",
 }
 BASE_FOR_WINRATE = "E0a"
 
